@@ -1,0 +1,12 @@
+.env
+.venv/
+data/uploads/
+data/output/
+data/chroma_db/
+data/reference_library/*
+!data/reference_library/.gitkeep
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store

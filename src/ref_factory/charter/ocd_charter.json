@@ -1,0 +1,31 @@
+{
+  "brand_name": "Orange Cyberdefense",
+  "colors": {
+    "primary_orange": "#FF6600",
+    "black": "#000000",
+    "dark_grey": "#333333",
+    "medium_grey": "#666666",
+    "light_grey": "#F2F2F2",
+    "white": "#FFFFFF",
+    "table_accent": "#FFF3E0"
+  },
+  "fonts": {
+    "primary": "Source Sans Pro",
+    "fallback": ["Calibri", "Arial", "Helvetica Neue"]
+  },
+  "pptx": {
+    "slide_width_cm": 33.87,
+    "slide_height_cm": 19.05,
+    "styles": {
+      "title": {"font_name": "Source Sans Pro", "font_size": 28, "bold": true, "color": "#FF6600"},
+      "subtitle": {"font_name": "Source Sans Pro", "font_size": 20, "bold": false, "color": "#000000"},
+      "heading": {"font_name": "Source Sans Pro", "font_size": 18, "bold": true, "color": "#FF6600"},
+      "body": {"font_name": "Source Sans Pro", "font_size": 14, "bold": false, "color": "#000000"},
+      "bullet": {"font_name": "Source Sans Pro", "font_size": 14, "bold": false, "color": "#000000"},
+      "caption": {"font_name": "Source Sans Pro", "font_size": 10, "italic": true, "color": "#666666"},
+      "metadata_label": {"font_name": "Source Sans Pro", "font_size": 11, "bold": true, "color": "#FF6600"},
+      "metadata_value": {"font_name": "Source Sans Pro", "font_size": 12, "bold": false, "color": "#000000"},
+      "footer": {"font_name": "Source Sans Pro", "font_size": 8, "bold": false, "color": "#666666"}
+    }
+  }
+}

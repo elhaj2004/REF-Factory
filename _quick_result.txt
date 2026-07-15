@@ -1,0 +1,20 @@
+=== Test 1: Rendering PPTX ===
+OK - PPTX: C:\Users\BJPS1817\REF-Factory\data\output\Test-REF-Audit-Banque-2026-07-10_11-26-41.pptx
+Exists: True
+
+=== Test 2: Quality Checker ===
+OK - Score: 89.5, Missing: []
+
+=== Test 3: Document Parser ===
+OK - Docs: 0, Text len: 46
+
+=== Test 4: Graph import ===
+OK - Nodes: ['__start__', 'collect_inputs', 'retrieve_examples', 'structure_ref', 'render_pptx', 'check_quality']
+
+=== Test 5: RAG import ===
+OK - 4 fichiers dans reference_library
+
+=== Test 6: LLM client ===
+OK - LLM disponible: True
+
+=== DONE ===
