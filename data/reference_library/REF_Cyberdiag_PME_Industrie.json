@@ -1,0 +1,25 @@
+{
+  "titre": "Cyberdiagnostic et feuille de route cyber - PME industrielle",
+  "client": "Fabricant équipementier automobile (anonymisé - Grand Est)",
+  "secteur": "Industrie / Manufacturing / Automobile",
+  "duree": "4 semaines",
+  "equipe": "1 consultant senior",
+  "confidentialite": "Interne",
+  "mots_cles": ["cyberdiagnostic", "PME", "feuille de route", "maturité", "industrie", "NIS2"],
+  "contexte": "PME de 350 salariés, sous-traitant de rang 1 pour constructeurs automobiles. Obligation de démontrer un niveau minimal de cybersécurité à ses donneurs d'ordre (exigences ENX/TISAX). Pas de DSI dédié, un seul informaticien multi-tâches, budget SI très contraint.",
+  "mission": "Diagnostic flash de la maturité cyber couvrant 6 domaines (gouvernance, protection, détection, réponse, continuité, conformité), évaluation par rapport au référentiel TISAX AL2, identification des risques prioritaires et élaboration d'une feuille de route pragmatique adaptée aux contraintes PME.",
+  "livrables": [
+    "Rapport de cyberdiagnostic avec scoring TISAX AL2",
+    "Cartographie des risques prioritaires (top 10)",
+    "Feuille de route cyber 12 mois (budget < 30k€)",
+    "Kit de sensibilisation collaborateurs (phishing, MDP)"
+  ],
+  "resultats": [
+    "Score TISAX AL2 passé de 28% à 61% en 8 mois",
+    "Donneurs d'ordre satisfaits de la démarche (audit TISAX réussi)",
+    "0 incident cyber majeur depuis le début du programme",
+    "MFA déployé sur 100% des accès distants en 6 semaines"
+  ],
+  "references_similaires": [],
+  "date": "2025-Q1"
+}

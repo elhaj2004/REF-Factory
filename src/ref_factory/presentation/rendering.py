@@ -1,6 +1,9 @@
 """
 Rendu PPTX one-slide conforme à la charte Orange Cyberdefense.
-Couleurs, polices et dimensions issues de ocd_charter.json.
+Couleurs et dimensions extraites de :
+  - Tools and templates PPT - FR/French/6. XML/Orange WHT Core.xml
+  - Tools and templates PPT - FR/French/6. XML/Orange BLK Core.xml
+  - Tools and templates PPT - FR/French/2. Templates/French/*.potx
 """
 import json
 import re
@@ -20,67 +23,69 @@ from ref_factory.config import OUTPUT_DIR
 # ── Chargement de la charte ──────────────────────────────────────────────────
 _CHARTER_PATH = Path(__file__).resolve().parents[1] / "charter" / "ocd_charter.json"
 
+
 def _load_charter() -> dict:
     if _CHARTER_PATH.exists():
         return json.loads(_CHARTER_PATH.read_text(encoding="utf-8"))
     return {}
 
+
 _CHARTER = _load_charter()
 _COLORS = _CHARTER.get("colors", {})
 _FONTS = _CHARTER.get("fonts", {})
 _STYLES = _CHARTER.get("pptx", {}).get("styles", {})
+_CONF_COLORS = _CHARTER.get("confidentiality_colors", {})
 
 PRIMARY_FONT = _FONTS.get("primary", "Source Sans Pro")
-FALLBACK = _FONTS.get("fallback", ["Calibri", "Arial"])[0]
+
 
 def _font(name_override: str | None = None) -> str:
     return name_override or PRIMARY_FONT
 
+
 def _rgb(hex_color: str) -> RGBColor:
-    hex_color = hex_color.lstrip("#")
-    return RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+    h = hex_color.lstrip("#")
+    return RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
-# Couleurs OCD
-ORANGE = _rgb(_COLORS.get("primary_orange", "#FF6600"))
+
+# Palette OCD officielle — source : Orange WHT Core.xml / Orange BLK Core.xml
+ORANGE = _rgb(_COLORS.get("primary_orange", "#FF7900"))
 BLACK = _rgb(_COLORS.get("black", "#000000"))
-DARK_GREY = _rgb(_COLORS.get("dark_grey", "#333333"))
-MEDIUM_GREY = _rgb(_COLORS.get("medium_grey", "#666666"))
-LIGHT_GREY = _rgb(_COLORS.get("light_grey", "#F2F2F2"))
+DARK_GREY = _rgb(_COLORS.get("dark_grey", "#595959"))
+MEDIUM_GREY = _rgb(_COLORS.get("medium_grey", "#8F8F8F"))
+LIGHT_GREY = _rgb(_COLORS.get("light_grey", "#D6D6D6"))
+VERY_LIGHT_GREY = _rgb(_COLORS.get("very_light_grey", "#F5F5F5"))
 WHITE = _rgb(_COLORS.get("white", "#FFFFFF"))
-ACCENT_BG = _rgb(_COLORS.get("table_accent", "#FFF3E0"))
 
-# Dimensions OCD exactes (33.87 x 19.05 cm)
+# Dimensions OCD officielles 16:9 (33.87 × 19.05 cm)
 SLIDE_W = Cm(33.87)
 SLIDE_H = Cm(19.05)
+
+# Constantes de grille
+MARGIN = Cm(1.2)
+BANDEAU_H = Cm(0.6)           # bandeau orange OCD en haut
+HEADER_H = Cm(3.5)            # zone titre+sous-titre
+LEFT_PANEL_W = Cm(9.0)        # largeur colonne gauche (métadonnées)
+GUTTER = Cm(0.5)              # gouttière entre les deux colonnes
+RIGHT_X = MARGIN + LEFT_PANEL_W + GUTTER
+RIGHT_W = SLIDE_W - RIGHT_X - MARGIN
+CONTENT_TOP = BANDEAU_H + HEADER_H + Cm(0.3)
+CONTENT_H = SLIDE_H - CONTENT_TOP - Cm(1.5)   # espace avant footer
+
 
 # ── Rendu principal ──────────────────────────────────────────────────────────
 
 def render_ref_slide(payload: dict[str, Any]) -> str:
-    """Génère une slide REF conforme à la charte OCD."""
+    """Génère une slide REF unique conforme à la charte OCD."""
     prs = Presentation()
     prs.slide_width = SLIDE_W
     prs.slide_height = SLIDE_H
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
 
-    # 1. Bandeau orange supérieur
     _add_bandeau(slide)
-
-    # 2. Logo OCD (texte simulé faute de logo embeddé)
-    _add_logo_text(slide)
-
-    # 3. Badge confidentialité
-    _add_badge(slide, payload.get("confidentiality", "Interne"))
-
-    # 4. Titre et sous-titre
-    _add_title_block(slide, payload)
-
-    # 5. Panneau métadonnées (gauche)
-    _add_metadata_panel(slide, payload)
-
-    # 6. Sections principales (droite)
-    _add_content_sections(slide, payload)
-
-    # 7. Footer
+    _add_header_zone(slide, payload)
+    _add_left_panel(slide, payload)
+    _add_right_content(slide, payload)
     _add_footer(slide, payload)
 
     output_path = _build_output_path(payload.get("title"))
@@ -88,126 +93,120 @@ def render_ref_slide(payload: dict[str, Any]) -> str:
     return str(output_path)
 
 
-# ── Composants visuels ───────────────────────────────────────────────────────
+# ── Bandeau OCD ──────────────────────────────────────────────────────────────
 
 def _add_bandeau(slide) -> None:
-    """Bandeau orange fin en haut de slide (signature OCD)."""
+    """Bandeau orange plein en haut (signature OCD)."""
     shape = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Cm(0), Cm(0), SLIDE_W, Cm(0.15)
+        MSO_SHAPE.RECTANGLE, Cm(0), Cm(0), SLIDE_W, BANDEAU_H
     )
     shape.fill.solid()
     shape.fill.fore_color.rgb = ORANGE
     shape.line.fill.background()
 
-
-def _add_logo_text(slide) -> None:
-    """Texte 'Orange Cyberdefense' en haut à gauche."""
-    txBox = slide.shapes.add_textbox(Cm(1.0), Cm(0.35), Cm(8), Cm(0.9))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
+    # Nom de la marque dans le bandeau
+    txBox = slide.shapes.add_textbox(MARGIN, Cm(0.1), Cm(14), Cm(0.4))
+    p = txBox.text_frame.paragraphs[0]
     p.text = "Orange Cyberdefense"
     p.font.name = _font()
-    p.font.size = Pt(11)
-    p.font.bold = True
-    p.font.color.rgb = BLACK
-
-    # Ligne orange sous le logo
-    line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Cm(1.0), Cm(1.1), Cm(3.5), Cm(0.04)
-    )
-    line.fill.solid()
-    line.fill.fore_color.rgb = ORANGE
-    line.line.fill.background()
-
-
-def _add_badge(slide, confidentiality: str) -> None:
-    """Badge de confidentialité en haut à droite."""
-    badge_w = Cm(3.2)
-    badge_h = Cm(0.7)
-    x = SLIDE_W - badge_w - Cm(1.0)
-    y = Cm(0.4)
-
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, x, y, badge_w, badge_h
-    )
-    is_conf = confidentiality.lower().startswith("conf")
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = BLACK if is_conf else ORANGE
-    shape.line.fill.background()
-
-    tf = shape.text_frame
-    tf.clear()
-    tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    p.text = confidentiality
-    p.font.name = _font()
-    p.font.size = Pt(10)
+    p.font.size = Pt(9)
     p.font.bold = True
     p.font.color.rgb = WHITE
 
 
-def _add_title_block(slide, payload: dict[str, Any]) -> None:
-    """Titre principal + sous-titre client/secteur/durée."""
-    title = _coerce(payload.get("title"), "Fiche Référence")
+# ── Zone titre / sous-titre / badge ──────────────────────────────────────────
 
-    # Titre
-    txBox = slide.shapes.add_textbox(Cm(1.0), Cm(1.5), Cm(26), Cm(1.4))
-    tf = txBox.text_frame
+def _add_header_zone(slide, payload: dict[str, Any]) -> None:
+    """Zone de titre avec badge confidentialité (fond blanc, trait orange bas)."""
+    y0 = BANDEAU_H
+    title_text = _coerce(payload.get("title"), "Fiche Référence")
+    confidentiality = payload.get("confidentiality", "Interne")
+
+    # Titre principal
+    txTitle = slide.shapes.add_textbox(MARGIN, y0 + Cm(0.35), SLIDE_W - MARGIN * 2 - Cm(3.8), Cm(1.5))
+    tf = txTitle.text_frame
     tf.word_wrap = True
     p = tf.paragraphs[0]
-    p.text = title
-    style = _STYLES.get("title", {})
-    p.font.name = _font(style.get("font_name"))
-    p.font.size = Pt(style.get("font_size", 28))
-    p.font.bold = style.get("bold", True)
-    p.font.color.rgb = _rgb(style.get("color", "#FF6600"))
+    p.text = title_text
+    s = _STYLES.get("title", {})
+    p.font.name = _font(s.get("font_name"))
+    p.font.size = Pt(s.get("font_size", 26))
+    p.font.bold = s.get("bold", True)
+    p.font.color.rgb = _rgb(s.get("color", "#000000"))
 
-    # Sous-titre
-    subtitle_parts = [
-        _coerce(payload.get("client"), "[Client à compléter]"),
-        _coerce(payload.get("sector"), "[Secteur à compléter]"),
-        _coerce(payload.get("duration"), "[Durée à compléter]"),
+    # Sous-titre : client | secteur | durée
+    parts = [
+        _coerce(payload.get("client"), ""),
+        _coerce(payload.get("sector"), ""),
+        _coerce(payload.get("duration"), ""),
     ]
-    subtitle = "  |  ".join(subtitle_parts)
+    subtitle_text = "  |  ".join(p for p in parts if p)
+    if not subtitle_text:
+        subtitle_text = "[Client / Secteur / Durée à compléter]"
 
-    txBox2 = slide.shapes.add_textbox(Cm(1.0), Cm(2.85), Cm(26), Cm(0.7))
-    tf2 = txBox2.text_frame
+    txSub = slide.shapes.add_textbox(MARGIN, y0 + Cm(2.0), SLIDE_W - MARGIN * 2 - Cm(3.8), Cm(0.9))
+    tf2 = txSub.text_frame
     tf2.word_wrap = True
     p2 = tf2.paragraphs[0]
-    p2.text = subtitle
-    style_sub = _STYLES.get("subtitle", {})
-    p2.font.name = _font(style_sub.get("font_name"))
-    p2.font.size = Pt(style_sub.get("font_size", 16))
-    p2.font.bold = style_sub.get("bold", False)
-    p2.font.color.rgb = _rgb(style_sub.get("color", "#333333"))
+    p2.text = subtitle_text
+    s2 = _STYLES.get("subtitle", {})
+    p2.font.name = _font(s2.get("font_name"))
+    p2.font.size = Pt(s2.get("font_size", 14))
+    p2.font.bold = s2.get("bold", False)
+    p2.font.color.rgb = _rgb(s2.get("color", "#595959"))
 
-
-def _add_metadata_panel(slide, payload: dict[str, Any]) -> None:
-    """Panneau latéral gauche avec infos clés (fond gris clair)."""
-    panel_x = Cm(1.0)
-    panel_y = Cm(3.8)
-    panel_w = Cm(8.5)
-    panel_h = Cm(13.8)
-
-    # Fond du panneau
-    bg = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, panel_x, panel_y, panel_w, panel_h
+    # Trait orange sous le titre
+    sep = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, MARGIN, y0 + Cm(3.15), SLIDE_W - MARGIN * 2, Cm(0.06)
     )
-    bg.fill.solid()
-    bg.fill.fore_color.rgb = LIGHT_GREY
-    bg.line.fill.background()
+    sep.fill.solid()
+    sep.fill.fore_color.rgb = ORANGE
+    sep.line.fill.background()
 
-    # Contenu texte
-    txBox = slide.shapes.add_textbox(
-        Cm(1.5), Cm(4.2), Cm(7.5), Cm(13.0)
-    )
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.TOP
+    # Badge confidentialité
+    _add_badge(slide, confidentiality)
+
+
+def _add_badge(slide, confidentiality: str) -> None:
+    badge_w = Cm(3.2)
+    badge_h = Cm(0.65)
+    x = SLIDE_W - badge_w - MARGIN
+    y = BANDEAU_H + Cm(0.5)
+
+    conf_hex = _CONF_COLORS.get(confidentiality, _COLORS.get("dark_grey", "#595959"))
+    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, badge_w, badge_h)
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = _rgb(conf_hex)
+    shape.line.fill.background()
+
+    tf = shape.text_frame
     tf.clear()
+    tf.word_wrap = False
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    p.text = confidentiality.upper()
+    s = _STYLES.get("badge_text", {})
+    p.font.name = _font(s.get("font_name"))
+    p.font.size = Pt(s.get("font_size", 9))
+    p.font.bold = s.get("bold", True)
+    p.font.color.rgb = WHITE
+
+
+# ── Panneau gauche : métadonnées ─────────────────────────────────────────────
+
+def _add_left_panel(slide, payload: dict[str, Any]) -> None:
+    """Colonne gauche sur fond très légèrement grisé — infos structurées."""
+    panel_x = MARGIN
+    panel_y = CONTENT_TOP
+    panel_h = CONTENT_H
+
+    # Fond
+    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, panel_x, panel_y, LEFT_PANEL_W, panel_h)
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = VERY_LIGHT_GREY
+    bg.line.color.rgb = LIGHT_GREY
+    bg.line.width = Pt(0.5)
 
     rows = [
         ("CLIENT", _coerce(payload.get("client"), "[À COMPLÉTER]")),
@@ -216,141 +215,174 @@ def _add_metadata_panel(slide, payload: dict[str, Any]) -> None:
         ("ÉQUIPE", _coerce(payload.get("team"), "[À COMPLÉTER]")),
         ("MOTS-CLÉS", ", ".join(payload.get("keywords") or ["[À COMPLÉTER]"])),
     ]
+    if payload.get("notes"):
+        rows.append(("NOTE", _coerce(payload["notes"], "")))
 
-    label_style = _STYLES.get("metadata_label", {})
-    value_style = _STYLES.get("metadata_value", {})
+    txBox = slide.shapes.add_textbox(
+        panel_x + Cm(0.35), panel_y + Cm(0.4), LEFT_PANEL_W - Cm(0.7), panel_h - Cm(0.5)
+    )
+    tf = txBox.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.TOP
+    tf.clear()
+
+    label_s = _STYLES.get("metadata_label", {})
+    value_s = _STYLES.get("metadata_value", {})
 
     for idx, (label, value) in enumerate(rows):
         if idx > 0:
-            spacer = tf.add_paragraph()
-            spacer.text = ""
-            spacer.space_after = Pt(3)
+            sp = tf.add_paragraph()
+            sp.text = ""
+            sp.space_after = Pt(2)
 
-        # Label
-        p_label = tf.add_paragraph()
-        p_label.text = label
-        p_label.font.name = _font(label_style.get("font_name"))
-        p_label.font.size = Pt(label_style.get("font_size", 9))
-        p_label.font.bold = True
-        p_label.font.color.rgb = _rgb(label_style.get("color", "#FF6600"))
-        p_label.space_after = Pt(2)
+        p_lbl = tf.add_paragraph() if idx > 0 or True else tf.paragraphs[0]
+        if idx == 0:
+            p_lbl = tf.paragraphs[0]
+        else:
+            p_lbl = tf.add_paragraph()
+        p_lbl.text = label
+        p_lbl.font.name = _font(label_s.get("font_name"))
+        p_lbl.font.size = Pt(label_s.get("font_size", 9))
+        p_lbl.font.bold = True
+        p_lbl.font.color.rgb = _rgb(label_s.get("color", "#FF7900"))
+        p_lbl.space_after = Pt(1)
 
-        # Value
-        p_value = tf.add_paragraph()
-        p_value.text = value
-        p_value.font.name = _font(value_style.get("font_name"))
-        p_value.font.size = Pt(value_style.get("font_size", 13))
-        p_value.font.bold = False
-        p_value.font.color.rgb = _rgb(value_style.get("color", "#000000"))
-        p_value.space_after = Pt(14)
-
-
-def _add_content_sections(slide, payload: dict[str, Any]) -> None:
-    """Sections principales à droite du panneau."""
-    x_start = Cm(10.5)
-    w = Cm(22)
-
-    sections = [
-        ("CONTEXTE", payload.get("context", "[À COMPLÉTER]"), Cm(3.8), Cm(3.9)),
-        ("MISSION", payload.get("mission", "[À COMPLÉTER]"), Cm(7.8), Cm(3.9)),
-    ]
-
-    heading_style = _STYLES.get("heading", {})
-    body_style = _STYLES.get("body", {})
-
-    for title, body, y, h in sections:
-        # Titre de section
-        txTitle = slide.shapes.add_textbox(x_start, y, w, Cm(0.8))
-        p = txTitle.text_frame.paragraphs[0]
-        p.text = title
-        p.font.name = _font(heading_style.get("font_name"))
-        p.font.size = Pt(heading_style.get("font_size", 18))
-        p.font.bold = True
-        p.font.color.rgb = _rgb(heading_style.get("color", "#FF6600"))
-
-        # Contenu
-        txBody = slide.shapes.add_textbox(x_start, y + Cm(0.9), w, h - Cm(0.9))
-        tf = txBody.text_frame
-        tf.word_wrap = True
-        p = tf.paragraphs[0]
-        p.text = _coerce(body, "[À COMPLÉTER]")
-        p.font.name = _font(body_style.get("font_name"))
-        p.font.size = Pt(body_style.get("font_size", 14))
-        p.font.bold = False
-        p.font.color.rgb = _rgb(body_style.get("color", "#000000"))
-
-    # Livrables & Résultats (deux colonnes)
-    col_y = Cm(12.5)
-    col_w = Cm(10.2)
-    _add_bullet_section(slide, "LIVRABLES", payload.get("deliverables") or ["[À COMPLÉTER]"],
-                        x_start, col_y, col_w, Cm(4.5))
-    _add_bullet_section(slide, "RÉSULTATS / VALEUR", payload.get("results") or ["[À COMPLÉTER]"],
-                        x_start + col_w + Cm(0.8), col_y, col_w, Cm(4.5))
+        p_val = tf.add_paragraph()
+        p_val.text = value
+        p_val.font.name = _font(value_s.get("font_name"))
+        p_val.font.size = Pt(value_s.get("font_size", 10))
+        p_val.font.bold = False
+        p_val.font.color.rgb = _rgb(value_s.get("color", "#000000"))
+        p_val.space_after = Pt(4)
 
 
-def _add_bullet_section(slide, title: str, items: list[str],
-                        x, y, w, h) -> None:
-    """Bloc avec bullet points."""
-    heading_style = _STYLES.get("heading", {})
-    bullet_style = _STYLES.get("bullet", {})
+# ── Zone droite : sections de contenu ────────────────────────────────────────
 
-    # Titre
-    txTitle = slide.shapes.add_textbox(x, y, w, Cm(0.7))
-    p = txTitle.text_frame.paragraphs[0]
-    p.text = title
-    p.font.name = _font(heading_style.get("font_name"))
-    p.font.size = Pt(heading_style.get("font_size", 18))
+def _add_right_content(slide, payload: dict[str, Any]) -> None:
+    """Zone principale à droite — Contexte, Mission, Livrables, Résultats."""
+    x = RIGHT_X
+    w = RIGHT_W
+    y = CONTENT_TOP
+    h = CONTENT_H
+
+    half_h = (h - Cm(0.4)) / 2
+    col_w = (w - Cm(0.5)) / 2
+
+    # Contexte (haut gauche)
+    _add_text_section(slide, "CONTEXTE", _coerce(payload.get("context"), "[À COMPLÉTER]"),
+                      x, y, col_w, half_h)
+
+    # Mission (haut droite)
+    _add_text_section(slide, "MISSION", _coerce(payload.get("mission"), "[À COMPLÉTER]"),
+                      x + col_w + Cm(0.5), y, col_w, half_h)
+
+    # Séparateur horizontal
+    sep_y = y + half_h + Cm(0.15)
+    sep = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, sep_y, w, Cm(0.04))
+    sep.fill.solid()
+    sep.fill.fore_color.rgb = LIGHT_GREY
+    sep.line.fill.background()
+
+    y2 = sep_y + Cm(0.2)
+    h2 = SLIDE_H - y2 - Cm(1.5)
+
+    # Livrables (bas gauche)
+    _add_bullet_section(slide, "LIVRABLES",
+                        payload.get("deliverables") or ["[À COMPLÉTER]"],
+                        x, y2, col_w, h2)
+
+    # Résultats (bas droite)
+    _add_bullet_section(slide, "RÉSULTATS / VALEUR",
+                        payload.get("results") or ["[À COMPLÉTER]"],
+                        x + col_w + Cm(0.5), y2, col_w, h2)
+
+
+def _add_text_section(slide, heading: str, body: str, x, y, w, h) -> None:
+    heading_s = _STYLES.get("heading", {})
+    body_s = _STYLES.get("body", {})
+
+    txH = slide.shapes.add_textbox(x, y, w, Cm(0.6))
+    p = txH.text_frame.paragraphs[0]
+    p.text = heading
+    p.font.name = _font(heading_s.get("font_name"))
+    p.font.size = Pt(heading_s.get("font_size", 11))
     p.font.bold = True
-    p.font.color.rgb = _rgb(heading_style.get("color", "#FF6600"))
+    p.font.color.rgb = _rgb(heading_s.get("color", "#FF7900"))
 
-    # Bullets
-    txBody = slide.shapes.add_textbox(x, y + Cm(0.8), w, h - Cm(0.8))
-    tf = txBody.text_frame
+    txB = slide.shapes.add_textbox(x, y + Cm(0.65), w, h - Cm(0.65))
+    tf = txB.text_frame
+    tf.word_wrap = True
+    p2 = tf.paragraphs[0]
+    p2.text = body
+    p2.font.name = _font(body_s.get("font_name"))
+    p2.font.size = Pt(body_s.get("font_size", 11))
+    p2.font.bold = False
+    p2.font.color.rgb = _rgb(body_s.get("color", "#000000"))
+
+
+def _add_bullet_section(slide, heading: str, items: list[str], x, y, w, h) -> None:
+    heading_s = _STYLES.get("heading", {})
+    bullet_s = _STYLES.get("bullet", {})
+
+    txH = slide.shapes.add_textbox(x, y, w, Cm(0.6))
+    p = txH.text_frame.paragraphs[0]
+    p.text = heading
+    p.font.name = _font(heading_s.get("font_name"))
+    p.font.size = Pt(heading_s.get("font_size", 11))
+    p.font.bold = True
+    p.font.color.rgb = _rgb(heading_s.get("color", "#FF7900"))
+
+    txB = slide.shapes.add_textbox(x, y + Cm(0.65), w, h - Cm(0.65))
+    tf = txB.text_frame
     tf.word_wrap = True
     tf.clear()
 
-    items = items[:3] if items else ["[À COMPLÉTER]"]
-    for i, item in enumerate(items):
-        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.text = _coerce(item, "[À COMPLÉTER]")
-        p.level = 0
-        p.font.name = _font(bullet_style.get("font_name"))
-        p.font.size = Pt(bullet_style.get("font_size", 14))
-        p.font.bold = False
-        p.font.color.rgb = _rgb(bullet_style.get("color", "#000000"))
-        p.space_after = Pt(6)
+    visible_items = (items or ["[À COMPLÉTER]"])[:3]
+    for i, item in enumerate(visible_items):
+        p2 = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p2.text = f"▸  {_coerce(item, '[À COMPLÉTER]')}"
+        p2.font.name = _font(bullet_s.get("font_name"))
+        p2.font.size = Pt(bullet_s.get("font_size", 10))
+        p2.font.bold = False
+        p2.font.color.rgb = _rgb(bullet_s.get("color", "#000000"))
+        p2.space_after = Pt(5)
 
-        # Ajouter un vrai bullet character
-        p.text = f"• {p.text}"
 
+# ── Footer ────────────────────────────────────────────────────────────────────
 
 def _add_footer(slide, payload: dict[str, Any]) -> None:
-    """Footer discret avec copyright et références utilisées."""
-    footer_y = SLIDE_H - Cm(1.2)
+    footer_y = SLIDE_H - Cm(1.3)
 
-    # Ligne de séparation fine
     sep = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Cm(1.0), footer_y - Cm(0.15), Cm(32), Cm(0.02)
+        MSO_SHAPE.RECTANGLE, MARGIN, footer_y - Cm(0.1), SLIDE_W - MARGIN * 2, Cm(0.03)
     )
     sep.fill.solid()
     sep.fill.fore_color.rgb = LIGHT_GREY
     sep.line.fill.background()
 
     refs = payload.get("reference_examples_used") or []
-    refs_text = f"Fiches similaires : {', '.join(refs[:3])}" if refs else "Aucune fiche similaire trouvée"
+    refs_text = f"Basé sur : {', '.join(refs[:3])}" if refs else ""
+    date_str = datetime.now().strftime("%d/%m/%Y")
 
-    footer_text = f"Orange Cyberdefense — REF-Factory | {refs_text} | Généré le {datetime.now().strftime('%d/%m/%Y')}"
+    left_text = "Orange Cyberdefense — Conseil & Audit"
+    right_text = f"{refs_text}  |  REF-Factory  |  {date_str}" if refs_text else f"REF-Factory  |  {date_str}"
 
-    txBox = slide.shapes.add_textbox(Cm(1.0), footer_y, Cm(32), Cm(0.8))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = footer_text
-    p.alignment = PP_ALIGN.LEFT
-    footer_style = _STYLES.get("footer", {})
-    p.font.name = _font(footer_style.get("font_name"))
-    p.font.size = Pt(footer_style.get("font_size", 8))
-    p.font.color.rgb = _rgb(footer_style.get("color", "#666666"))
+    footer_s = _STYLES.get("footer", {})
+
+    txL = slide.shapes.add_textbox(MARGIN, footer_y, Cm(16), Cm(0.7))
+    pL = txL.text_frame.paragraphs[0]
+    pL.text = left_text
+    pL.font.name = _font(footer_s.get("font_name"))
+    pL.font.size = Pt(footer_s.get("font_size", 8))
+    pL.font.color.rgb = _rgb(footer_s.get("color", "#8F8F8F"))
+
+    txR = slide.shapes.add_textbox(SLIDE_W - Cm(17) - MARGIN, footer_y, Cm(17), Cm(0.7))
+    pR = txR.text_frame.paragraphs[0]
+    pR.text = right_text
+    pR.alignment = PP_ALIGN.RIGHT
+    pR.font.name = _font(footer_s.get("font_name"))
+    pR.font.size = Pt(footer_s.get("font_size", 8))
+    pR.font.color.rgb = _rgb(footer_s.get("color", "#8F8F8F"))
 
 
 # ── Utilitaires ──────────────────────────────────────────────────────────────

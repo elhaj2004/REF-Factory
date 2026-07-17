@@ -1,13 +1,16 @@
 {
   "brand_name": "Orange Cyberdefense",
+  "_color_source": "Tools and templates PPT - FR/French/6. XML/Orange WHT Core.xml + Orange BLK Core.xml",
   "colors": {
-    "primary_orange": "#FF6600",
+    "primary_orange": "#FF7900",
     "black": "#000000",
-    "dark_grey": "#333333",
-    "medium_grey": "#666666",
-    "light_grey": "#F2F2F2",
+    "dark_grey": "#595959",
+    "medium_grey": "#8F8F8F",
+    "light_grey": "#D6D6D6",
+    "very_light_grey": "#F5F5F5",
     "white": "#FFFFFF",
-    "table_accent": "#FFF3E0"
+    "table_accent": "#FFF3E0",
+    "separator": "#D6D6D6"
   },
   "fonts": {
     "primary": "Source Sans Pro",
@@ -16,16 +19,23 @@
   "pptx": {
     "slide_width_cm": 33.87,
     "slide_height_cm": 19.05,
+    "bandeau_height_cm": 0.6,
     "styles": {
-      "title": {"font_name": "Source Sans Pro", "font_size": 28, "bold": true, "color": "#FF6600"},
-      "subtitle": {"font_name": "Source Sans Pro", "font_size": 20, "bold": false, "color": "#000000"},
-      "heading": {"font_name": "Source Sans Pro", "font_size": 18, "bold": true, "color": "#FF6600"},
-      "body": {"font_name": "Source Sans Pro", "font_size": 14, "bold": false, "color": "#000000"},
-      "bullet": {"font_name": "Source Sans Pro", "font_size": 14, "bold": false, "color": "#000000"},
-      "caption": {"font_name": "Source Sans Pro", "font_size": 10, "italic": true, "color": "#666666"},
-      "metadata_label": {"font_name": "Source Sans Pro", "font_size": 11, "bold": true, "color": "#FF6600"},
-      "metadata_value": {"font_name": "Source Sans Pro", "font_size": 12, "bold": false, "color": "#000000"},
-      "footer": {"font_name": "Source Sans Pro", "font_size": 8, "bold": false, "color": "#666666"}
+      "title": {"font_name": "Source Sans Pro", "font_size": 26, "bold": true, "color": "#000000"},
+      "subtitle": {"font_name": "Source Sans Pro", "font_size": 14, "bold": false, "color": "#595959"},
+      "heading": {"font_name": "Source Sans Pro", "font_size": 11, "bold": true, "color": "#FF7900"},
+      "body": {"font_name": "Source Sans Pro", "font_size": 11, "bold": false, "color": "#000000"},
+      "bullet": {"font_name": "Source Sans Pro", "font_size": 10, "bold": false, "color": "#000000"},
+      "caption": {"font_name": "Source Sans Pro", "font_size": 9, "italic": true, "color": "#8F8F8F"},
+      "metadata_label": {"font_name": "Source Sans Pro", "font_size": 9, "bold": true, "color": "#FF7900"},
+      "metadata_value": {"font_name": "Source Sans Pro", "font_size": 10, "bold": false, "color": "#000000"},
+      "footer": {"font_name": "Source Sans Pro", "font_size": 8, "bold": false, "color": "#8F8F8F"},
+      "badge_text": {"font_name": "Source Sans Pro", "font_size": 9, "bold": true, "color": "#FFFFFF"}
     }
+  },
+  "confidentiality_colors": {
+    "Interne": "#595959",
+    "Externe": "#FF7900",
+    "Confidentiel": "#000000"
   }
 }

@@ -1,0 +1,25 @@
+{
+  "titre": "Accompagnement conformité RGPD - Collectivité territoriale",
+  "client": "Communauté d'agglomération (anonymisé - 250 000 habitants)",
+  "secteur": "Collectivité territoriale / Service public local",
+  "duree": "6 mois",
+  "equipe": "1 DPO externalisé OCD, 1 consultant RGPD",
+  "confidentialite": "Interne",
+  "mots_cles": ["RGPD", "DPO", "conformité", "collectivité", "registre", "CNIL", "données personnelles"],
+  "contexte": "Collectivité sans DPO désigné exposée à des risques CNIL croissants. Gestion de nombreux traitements sensibles : état civil, vidéosurveillance, données sociales et scolaires. Plusieurs violations de données non déclarées identifiées. Obligation légale de désignation DPO pour les collectivités traitant des données à grande échelle.",
+  "mission": "Mission DPO externalisé : cartographie complète des traitements, constitution du registre RGPD, mise en conformité des procédures (droits des personnes, violations, contrats sous-traitants), formation des agents référents et sensibilisation générale, puis maintien en condition de conformité.",
+  "livrables": [
+    "Registre des traitements (142 traitements cartographiés)",
+    "12 PIAs réalisées sur traitements sensibles",
+    "Modèles de mentions légales et procédures",
+    "Programme de formation (8 sessions, 320 agents formés)"
+  ],
+  "resultats": [
+    "0 sanction CNIL suite à 2 contrôles sur la période",
+    "100% des violations déclarées dans les délais légaux",
+    "142 traitements documentés contre 12 à l'origine",
+    "Score de maturité RGPD de 18% à 74% en 6 mois"
+  ],
+  "references_similaires": [],
+  "date": "2024-Q3"
+}

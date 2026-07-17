@@ -1,0 +1,25 @@
+{
+  "titre": "Mise en place SOC managé - Opérateur d'infrastructure critique énergie",
+  "client": "Opérateur national d'infrastructure d'énergie (anonymisé)",
+  "secteur": "Énergie / Infrastructure critique / OIV",
+  "duree": "6 mois (phase 1) puis support récurrent",
+  "equipe": "1 architecte sécurité, 2 analystes SOC, 1 chef de projet",
+  "confidentialite": "Confidentiel",
+  "mots_cles": ["SOC", "SIEM", "OIV", "NIS2", "détection", "incident", "énergie", "OT/IT"],
+  "contexte": "Opérateur d'importance vitale soumis aux obligations NIS2 et LPM. L'organisation ne disposait d'aucune capacité de détection centralisée. Les systèmes OT (SCADA) et IT coexistaient sans supervision unifiée, créant des angles morts critiques.",
+  "mission": "Déploiement d'un SOC managé hybride couvrant les périmètres IT et OT/SCADA. Configuration du SIEM (Splunk), création de 120 règles de détection, intégration des sources OT via collecteurs spécialisés, mise en place des runbooks d'escalade et d'astreinte 24/7.",
+  "livrables": [
+    "Architecture SOC IT/OT documentée",
+    "120 règles de détection SIEM implémentées",
+    "Runbooks d'incident response (15 scénarios)",
+    "Tableau de bord de supervision et SLA"
+  ],
+  "resultats": [
+    "MTTD (Mean Time to Detect) réduit de 48h à moins de 2h",
+    "Couverture OT/IT unifiée sur 3 sites industriels",
+    "0 incident critique non détecté depuis mise en production",
+    "Certification NIS2 obtenue en Q2 2025"
+  ],
+  "references_similaires": [],
+  "date": "2024-Q3"
+}

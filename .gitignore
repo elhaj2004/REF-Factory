@@ -5,6 +5,7 @@ data/output/
 data/chroma_db/
 data/reference_library/*
 !data/reference_library/.gitkeep
+!data/reference_library/REF_*.json
 **/__pycache__/
 *.pyc
 *.pyo

@@ -1,166 +1,286 @@
 # REF-Factory
 
-REF-Factory est un projet Python inspire de `Pres-Factory` pour generer automatiquement une fiche REF Orange Cyberdefense au format PowerPoint, avec une sortie finale volontairement contrainte a **une seule slide**.
+REF-Factory génère automatiquement une **fiche REF Orange Cyberdefense** au format PowerPoint une seule slide, conforme à la charte graphique OCD, à partir d'un brief consultant et d'une base d'exemples locale (RAG).
 
-Le projet implemente :
+---
 
-- une interface graphique Gradio
-- un pipeline LangGraph
-- un RAG local sur des fiches REF existantes
-- une generation de contenu via LLM avec garde-fous anti-invention
-- un rendu PPTX one-slide avec une grille stable inspiree des usages observes dans `Pres-Factory`
-- un rapport qualite pour verifier la completude avant usage
+## 1. Objectif
 
-## 1. Objectif du projet
+Issu du cadrage `Cadrage_IA REF Factory CU10.pdf` :
 
-Le besoin repris du cadrage `Cadrage_IA REF Factory CU10.pdf` est le suivant :
+- Retrouver des fiches REF similaires déjà capitalisées
+- Aider le consultant à produire une nouvelle fiche REF plus vite
+- Respecter la structure et le style OCD (couleurs officielles, typo, grille)
+- Ne jamais inventer les informations manquantes (`[A_COMPLETER]`)
+- Livrer un fichier `.pptx` une slide directement exploitable
 
-- retrouver des fiches REF similaires deja capitalisees
-- aider le consultant a produire une nouvelle fiche REF plus vite
-- respecter une structure et un style homogenes
-- ne pas inventer les informations manquantes
-- sortir un livrable final directement exploitable en PowerPoint
+---
 
-Dans cette implementation, la cible livree est volontairement focalisee sur le cas d'usage "fiche REF" :
+## 2. Architecture du pipeline
 
-- entree : brief consultant + champs saisis + pieces jointes eventuelles
-- base d'exemples : fiches REF existantes
-- sortie : **un fichier `.pptx` contenant une seule slide**
-
-## 2. Ce qui a ete repris de Pres-Factory
-
-Le projet a ete concu en s'inspirant directement de `C:\Users\BJPS1817\Pres-Factory`.
-
-Elements repris ou adaptes :
-
-- pattern d'orchestration `LangGraph`
-- pattern de client LLM OpenAI-compatible / Dinootoo
-- pattern de RAG local avec `Chroma`
-- pattern d'interface locale `Gradio`
-- philosophie Orange/OCD de production de livrables bureautiques
-
-Elements volontairement simplifies par rapport a Pres-Factory :
-
-- pas de transformation d'un document complet multi-slides
-- pas de boucle complexe de validation humaine dans le graphe
-- pas de remapping de styles a partir d'un deck existant
-- rendu PPT genere from scratch pour garantir une slide unique, stable et maintenable
-
-## 3. Reutilisation de la meme cle API que Pres-Factory
-
-Le projet **n'ecrit pas la cle API dans le repo**.
-
-Le chargement de configuration suit cet ordre :
-
-1. `REF-Factory/.env`
-2. a defaut, `../Pres-Factory/.env`
-3. enfin, les variables d'environnement deja presentes dans la session shell
-
-Cela permet de reutiliser la meme cle que celle deja configuree dans `Pres-Factory`, sans duplication obligatoire.
-
-Variables supportees :
-
-- `LLM_PROVIDER`
-- `OPENAI_COMPAT_API_KEY`
-- `OPENAI_COMPAT_BASE_URL`
-- `OPENAI_COMPAT_MODEL`
-- `OPENAI_COMPAT_EMBEDDING_MODEL`
-- `DINOOTOO_API_KEY`
-- `DINOOTOO_BASE_URL`
-- `DINOOTOO_MODEL`
-- `DINOOTOO_EMBEDDING_MODEL`
-- `USE_LOCAL_EMBEDDINGS`
-- `LOCAL_EMBEDDING_MODEL`
-
-## 4. Workflow implemente
-
-Pipeline REF-Factory :
-
-```text
-[Brief + champs UI + pieces jointes]
-              |
-              v
+```
+[Brief + champs UI + pièces jointes]
+              │
+              ▼
        collect_inputs
-              |
-              v
-      retrieve_examples
-              |
-              v
-       structure_ref
-              |
-              v
-        render_pptx
-              |
-              v
+              │
+              ▼
+      retrieve_examples   ◄── RAG local (ChromaDB + local embeddings)
+              │
+              ▼
+       structure_ref      ◄── LLM si disponible, sinon fallback heuristique
+              │
+              ▼
+        render_pptx        ◄── python-pptx, charte OCD intégrée
+              │
+              ▼
        check_quality
-              |
-              v
-             END
+              │
+              ▼
+             FIN
 ```
 
-Detail des etapes :
+- Si aucun LLM n'est configuré : le fallback heuristique prend le relais (champs extraits du brief, mots-clés, phrases courtes).
+- Si aucune fiche d'exemple n'est présente : la génération fonctionne mais le rapport le signale.
 
-1. `collect_inputs`
-   Concatene les champs saisis dans l'interface et le texte extrait des fichiers joints.
+---
 
-2. `retrieve_examples`
-   Interroge la base locale de fiches REF deja existantes pour retrouver les exemples les plus proches.
+## 3. Conformité charte OCD
 
-3. `structure_ref`
-   Demande au LLM de produire un JSON "slide-ready" pour la fiche REF.
-   Regle cle : une information absente doit rester `[A_COMPLETER]`.
+### Couleurs officielles
 
-4. `render_pptx`
-   Genere un fichier `.pptx` avec **une seule slide** selon une grille fixe.
+Extraites des fichiers de brand box :
+- `Tools and templates PPT - FR/French/6. XML/Orange WHT Core.xml`
+- `Tools and templates PPT - FR/French/6. XML/Orange BLK Core.xml`
 
-5. `check_quality`
-   Calcule un score heuristique de completude, densite et ancrage sur les references.
+| Couleur | Valeur | Rôle |
+|---|---|---|
+| Orange principal | `#FF7900` | Titres de section, bandeau, badge accent |
+| Noir | `#000000` | Texte principal, titre slide |
+| Dark grey | `#595959` | Sous-titres, texte secondaire |
+| Medium grey | `#8F8F8F` | Footer, légendes |
+| Light grey | `#D6D6D6` | Séparateurs, bordures |
 
-## 5. Ou mettre les fiches REF deja faites
+> ⚠️ L'ancienne valeur `#FF6600` était incorrecte. La couleur officielle est `#FF7900` (source : `accent1` / `lt2` dans les XML de brand box).
 
-Les fiches REF existantes qui servent de base d'exemple doivent etre deposees ici :
+### Polices
 
-`data/reference_library/`
+- Principale : **Source Sans Pro**
+- Fallback : Calibri, Arial, Helvetica Neue
 
-Formats supportes dans cette base locale :
+### Dimensions slide
 
-- `.pptx`
-- `.docx`
-- `.pdf`
-- `.txt`
-- `.md`
-- `.json`
+- Largeur : **33.87 cm**
+- Hauteur : **19.05 cm** (format 16:9 standard OCD)
 
-Le cas principal attendu est le depot de fiches REF PowerPoint deja produites.
+### Grille de mise en page
 
-Exemple concret :
+```
+┌─────────────────────────────────────────────────┐
+│  [Bandeau orange 0.6 cm]        Orange CD       │
+├─────────────────────────────────────────────────┤
+│  [Titre]                              [Badge]   │
+│  [Sous-titre : Client | Secteur | Durée]        │
+│  ═══════════════════════════════════════════════│
+│  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │ MÉTADONNÉES  │  │ CONTEXTE  │  MISSION     │ │
+│  │ (fond gris)  │  ├───────────┴──────────────┤ │
+│  │ Client       │  │ LIVRABLES │  RÉSULTATS   │ │
+│  │ Secteur      │  │ • item 1  │  • item 1    │ │
+│  │ Durée        │  │ • item 2  │  • item 2    │ │
+│  │ Équipe       │  │ • item 3  │  • item 3    │ │
+│  │ Mots-clés    │  └──────────────────────────┘ │
+│  └──────────────┘                               │
+├─────────────────────────────────────────────────┤
+│  Orange Cyberdefense — Conseil & Audit   [date] │
+└─────────────────────────────────────────────────┘
+```
 
-```text
+---
+
+## 4. Base d'exemples REF (RAG)
+
+### Où déposer les fiches
+
+```
 REF-Factory/
   data/
     reference_library/
-      Fiche_REF_Banque_X.pptx
-      Fiche_REF_Industrie_Y.pptx
-      Fiche_REF_SOC_Groupe_Z.pptx
+      ← déposez ici vos fiches REF existantes
 ```
 
-Une fois ces fichiers poses dans `data/reference_library/`, il faut lancer l'indexation depuis l'interface ou via le script CLI.
+Formats supportés : `.pptx`, `.pdf`, `.docx`, `.txt`, `.md`, `.json`
 
-## 6. Structure du projet
+### Copier depuis O:\ConseiletAudit (Windows Orange)
 
-```text
+```bash
+python copy_ref_factory.py
+```
+
+Le script copie toutes les fiches REF depuis `O:\ConseiletAudit\Références` vers `data/reference_library/`. Ce script est conçu pour Windows avec accès au réseau Orange.
+
+### Créer des fiches exemples (hors réseau Orange / Linux)
+
+Quand `O:\ConseiletAudit` n'est pas accessible :
+
+```bash
+python scripts/seed_reference_library.py
+```
+
+Crée 7 fiches REF anonymisées couvrant les principaux domaines OCD :
+- Audit gouvernance SSI / DORA (banque)
+- SOC managé IT/OT (OIV énergie)
+- Tests d'intrusion e-commerce (PCI-DSS)
+- PSSI + EBIOS RM (hôpital)
+- Cyberdiagnostic PME (TISAX)
+- Réponse à incident ransomware (CERT)
+- DPO externalisé / RGPD (collectivité)
+
+### Indexer la base
+
+```bash
+python scripts/index_reference_library.py
+```
+
+Ou depuis l'interface UI : bouton **"Indexer la base REF"**.
+
+---
+
+## 5. Installation
+
+### Prérequis
+
+- Python 3.10+
+
+### Environnement virtuel
+
+```bash
+python -m venv .venv
+
+# Linux/Mac
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+
+pip install -r requirements.txt
+```
+
+---
+
+## 6. Configuration
+
+```bash
+cp .env.example .env
+```
+
+Puis éditer `.env` :
+
+```env
+# LLM (optionnel — le fallback heuristique fonctionne sans)
+LLM_PROVIDER=dinootoo
+DINOOTOO_API_KEY=...
+DINOOTOO_BASE_URL=https://llmproxy.ai.orange
+DINOOTOO_MODEL=gpt-4o
+
+# Embeddings locaux (recommandé — évite les appels API pour l'indexation)
+USE_LOCAL_EMBEDDINGS=true
+LOCAL_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+
+# Dossier fiches REF
+REF_LIBRARY_DIR=data/reference_library
+```
+
+Si `REF-Factory/.env` est absent, le projet tente de charger `../Pres-Factory/.env` automatiquement.
+
+> **Embeddings locaux** : avec `USE_LOCAL_EMBEDDINGS=true`, le modèle `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` est téléchargé une seule fois depuis HuggingFace (~120 Mo). L'indexation et la recherche ne consomment plus de budget API.
+
+---
+
+## 7. Lancer l'interface graphique
+
+```bash
+python ui/app.py
+```
+
+Disponible sur `http://localhost:7861`
+
+### Utilisation
+
+1. Remplir les champs (titre, client, secteur, durée, équipe, mots-clés, confidentialité)
+2. Coller le brief consultant dans la zone de texte
+3. Joindre des pièces jointes (PDF, DOCX, PPTX, TXT, MD, JSON)
+4. Cliquer sur **"Indexer la base REF"** si de nouvelles fiches ont été ajoutées
+5. Cliquer sur **"Générer la fiche REF"**
+6. Récupérer :
+   - Le rapport qualité (score sur 100)
+   - Les exemples similaires utilisés
+   - Le JSON structuré généré
+   - Le fichier **`.pptx` une slide** à télécharger
+
+---
+
+## 8. Script d'indexation CLI
+
+```bash
+python scripts/index_reference_library.py
+```
+
+---
+
+## 9. Tests
+
+```bash
+python -m pytest tests/ -v
+```
+
+### Couverture des tests (19 tests)
+
+| Fichier | Tests |
+|---|---|
+| `test_charter.py` | Conformité couleurs OCD (source XML brand box), dimensions slide, font, rendu |
+| `test_rendering.py` | Génération PPTX une slide, dimensions, contenu titre, badge confidentialité |
+| `test_quality.py` | Score qualité, champs manquants, impact RAG, densité texte, structure rapport |
+
+Vérification de la syntaxe complète :
+
+```bash
+python -m compileall src ui scripts tests
+```
+
+---
+
+## 10. Structure du projet
+
+```
 REF-Factory/
-├── .env.example
+├── .env                          # Configuration locale (non versionné)
+├── .env.example                  # Template de configuration
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
+├── Cadrage_IA REF Factory CU10.pdf
+├── analyze_charter.py            # Script d'analyse des templates .potx (Windows)
+├── copy_ref_factory.py           # Copie depuis O:\ConseiletAudit (Windows)
+├── data/
+│   ├── reference_library/        # ← Déposer les fiches REF ici
+│   ├── output/                   # Fichiers PPTX générés
+│   ├── uploads/                  # Pièces jointes temporaires
+│   └── chroma_db/                # Index vectoriel (local, auto-généré)
 ├── scripts/
-│   └── index_reference_library.py
+│   ├── index_reference_library.py
+│   └── seed_reference_library.py # Fiches exemples quand O: inaccessible
 ├── tests/
-│   ├── test_quality.py
-│   └── test_rendering.py
+│   ├── conftest.py
+│   ├── test_charter.py           # Tests conformité charte OCD
+│   ├── test_rendering.py         # Tests génération PPTX
+│   └── test_quality.py           # Tests rapport qualité
 ├── ui/
-│   └── app.py
+│   └── app.py                    # Interface Gradio
+├── Tools and templates PPT - FR/ # Brand box OCD (templates, XML couleurs)
+│   └── French/
+│       ├── 2. Templates/French/  # .potx OFR (interne, externe, confidentiel...)
+│       └── 6. XML/               # Orange WHT Core.xml, Orange BLK Core.xml
 └── src/
     └── ref_factory/
         ├── __init__.py
@@ -169,161 +289,40 @@ REF-Factory/
         ├── graph.py
         ├── json_utils.py
         ├── state.py
+        ├── charter/
+        │   └── ocd_charter.json  # Charte OCD (couleurs, polices, dimensions)
         ├── llm/
-        │   ├── __init__.py
-        │   └── client.py
+        │   └── client.py         # Client LLM (OpenAI-compat / Dinootoo)
         ├── nodes/
-        │   ├── __init__.py
-        │   ├── check_quality.py
         │   ├── collect_inputs.py
-        │   ├── render_pptx.py
         │   ├── retrieve_examples.py
-        │   └── structure_ref.py
+        │   ├── structure_ref.py
+        │   ├── render_pptx.py
+        │   └── check_quality.py
         ├── presentation/
-        │   ├── __init__.py
-        │   └── rendering.py
+        │   └── rendering.py      # Rendu PPTX conforme charte OCD
         └── rag/
-            ├── __init__.py
-            └── store.py
+            └── store.py          # ChromaDB + embeddings locaux ou API
 ```
 
-## 7. Installation
+---
 
-### Prerequis
+## 11. Guardrails métier
 
-- Python 3.10+
-- acces au provider OpenAI-compatible deja configure dans `Pres-Factory` ou dans un `.env` local
+- Les exemples RAG servent d'inspiration de structure, jamais de source de faits à recopier
+- Les champs absents restent `[A_COMPLETER]` (jamais inventés)
+- Score qualité dégradé si champs obligatoires incomplets
+- Fonctionne sans LLM (fallback heuristique) et sans API d'embeddings (`USE_LOCAL_EMBEDDINGS=true`)
 
-### Installation des dependances
+---
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+## 12. Résumé rapide
 
-## 8. Configuration
-
-Copier si besoin :
-
-```bash
-copy .env.example .env
-```
-
-Exemple minimal :
-
-```env
-LLM_PROVIDER=dinootoo
-OPENAI_COMPAT_API_KEY=
-OPENAI_COMPAT_BASE_URL=https://llmproxy.ai.orange
-OPENAI_COMPAT_MODEL=gpt-4o
-OPENAI_COMPAT_EMBEDDING_MODEL=text-embedding-3-small
-
-DINOOTOO_API_KEY=
-DINOOTOO_BASE_URL=https://llmproxy.ai.orange
-DINOOTOO_MODEL=gpt-4o
-DINOOTOO_EMBEDDING_MODEL=text-embedding-3-small
-
-USE_LOCAL_EMBEDDINGS=false
-LOCAL_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-
-REF_LIBRARY_DIR=data/reference_library
-```
-
-Si `REF-Factory/.env` est absent, l'application tentera automatiquement de reutiliser `../Pres-Factory/.env`.
-
-## 9. Lancer l'interface graphique
-
-```bash
-python ui/app.py
-```
-
-Interface disponible sur :
-
-`http://localhost:7861`
-
-## 10. Utilisation de l'interface
-
-1. Remplir les champs de contexte.
-2. Coller un brief libre dans la zone de texte.
-3. Joindre, si besoin, des documents source `.pdf`, `.docx`, `.pptx`, `.txt`, `.md` ou `.json`.
-4. Verifier que la base d'exemples est bien peuplee dans `data/reference_library/`.
-5. Cliquer sur `Indexer la base REF` si de nouveaux exemples ont ete ajoutes.
-6. Cliquer sur `Generer la fiche REF`.
-7. Recuperer :
-   - le rapport qualite
-   - les exemples similaires utilises
-   - le JSON structure genere
-   - le `.pptx` one-slide final
-
-## 11. Choix de design pour la slide finale
-
-Le rendu final est genere from scratch avec `python-pptx`, mais la direction visuelle est inspiree des assets observes dans `Pres-Factory`.
-
-Choix retenus :
-
-- format 16:9
-- slide unique
-- bandeau orange fin en tete
-- titre fort et badge de confidentialite
-- panneau de metadonnees a gauche
-- bloc principal de synthese a droite
-- sections dediees : contexte, mission, livrables, resultats
-- footer avec mots-cles et references utilisees
-
-Pourquoi from scratch :
-
-- garantir une sortie mono-slide stable
-- eviter la fragilite des `.potx` et des masters complexes
-- garder un rendu maintenable et pilotable par code
-
-## 12. Script d'indexation CLI
-
-Pour reindexer la base REF sans lancer l'UI :
-
-```bash
-python scripts/index_reference_library.py
-```
-
-## 13. Guardrails metier integres
-
-Les regles suivantes sont appliquees :
-
-- les exemples retrouves servent d'inspiration de structure, pas de source de faits a recopier
-- les champs absents restent `[A_COMPLETER]`
-- le score final degrade si les champs obligatoires sont incomplets
-- l'application fonctionne meme si aucune fiche d'exemple n'est presente, mais le rapport le signale
-
-## 14. Validation technique realisee
-
-Le projet inclut des tests simples pour valider :
-
-- la generation reelle d'un `.pptx` avec une seule slide
-- le calcul du rapport qualite
-
-Commandes de verification typiques :
-
-```bash
-pytest
-python -m compileall src ui scripts tests
-```
-
-## 15. Sortie attendue
-
-La sortie finale du projet est un fichier PowerPoint :
-
-- extension : `.pptx`
-- nombre de slides : **1**
-- contenu : une fiche REF structuree et prete a relire
-
-## 16. Resume tres concret
-
-Si vous voulez simplement savoir ou poser les fiches REF deja creees pour que l'agent s'en serve :
-
-`data/reference_library/`
-
-Si vous voulez lancer l'outil :
-
-```bash
-python ui/app.py
-```
+| Besoin | Commande |
+|---|---|
+| Créer les fiches exemples (hors réseau Orange) | `python scripts/seed_reference_library.py` |
+| Copier depuis O:\ConseiletAudit (Windows) | `python copy_ref_factory.py` |
+| Indexer la base REF | `python scripts/index_reference_library.py` |
+| Lancer l'interface | `python ui/app.py` → http://localhost:7861 |
+| Lancer les tests | `python -m pytest tests/ -v` |
+| Vérifier la syntaxe | `python -m compileall src ui scripts tests` |
