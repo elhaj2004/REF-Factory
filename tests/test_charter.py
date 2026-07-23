@@ -51,11 +51,22 @@ def test_light_grey_matches_brand_xml() -> None:
 
 
 def test_slide_dimensions_16_9() -> None:
-    """Les dimensions de slide doivent être 33.87 × 19.05 cm (16:9 standard OCD)."""
+    """Les dimensions de slide doivent être 33.87 × 19.05 cm (16:9 du template fiche)."""
     charter = _charter()
     pptx = charter["pptx"]
     assert pptx["slide_width_cm"] == 33.87
     assert pptx["slide_height_cm"] == 19.05
+
+
+def test_charter_declares_fixed_template() -> None:
+    """La charte doit imposer un template fiche unique pour toutes les fiches."""
+    charter = _charter()
+    template = charter.get("template", {})
+    template_path = Path(__file__).resolve().parents[1] / template["path"]
+    assert template_path.exists(), f"Template fiche introuvable : {template_path}"
+    assert template_path.suffix.lower() == ".pptx", (
+        "Le template fiche doit être un .pptx (fiche REF réelle à remplir)"
+    )
 
 
 def test_font_primary_is_source_sans_pro() -> None:

@@ -12,30 +12,65 @@ from ref_factory.config import OUTPUT_DIR, REFERENCE_LIBRARY_DIR, UPLOAD_DIR
 from ref_factory.graph import graph
 from ref_factory.rag.store import count_reference_files, index_reference_library
 
-ACCENT = "#FF6600"
-INK = "#1A1A1A"
+# Charte Orange Cyberdefense
+ORANGE = "#FF7900"
+INK = "#0A0A0A"
+GREY = "#595959"
+
+BRIEF_EXAMPLE = """Contexte :
+Face à la montée de la menace cyber dans son secteur, le client a souhaité
+renforcer sa posture de sécurité. L'entité ne disposait pas encore d'une
+politique formalisée ni d'un plan d'action priorisé.
+
+Réalisation :
+- Réalisation d'ateliers métiers et techniques avec les équipes concernées
+- Élaboration d'un scénario / d'une démarche sur mesure
+- Animation de la mission et restitution auprès du COMEX
+
+Livrables :
+- Rapport détaillé et cartographie des écarts
+- Feuille de route priorisée
+- Plan de formation / sensibilisation
+
+Bénéfices :
+- Prise de conscience des risques par les équipes
+- Priorisation claire des chantiers de remédiation
+- Conformité renforcée vis-à-vis des exigences applicables
+"""
 
 CSS = f"""
-:root {{
-    --accent: {ACCENT};
-    --ink: {INK};
+.gradio-container {{ font-family: 'Source Sans Pro', 'Calibri', 'Arial', sans-serif; }}
+
+#ocd-header {{
+    background: linear-gradient(90deg, {INK} 0%, #1c1c1c 100%);
+    border-left: 8px solid {ORANGE};
+    padding: 20px 24px;
+    border-radius: 10px;
+    margin-bottom: 14px;
 }}
-.gradio-container {{ font-family: 'Calibri', 'Arial', sans-serif; }}
-#header {{
-    background: linear-gradient(90deg, #111111 0%, #1a1a1a 100%);
-    border-left: 6px solid var(--accent);
-    padding: 18px 20px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-}}
-#header h1 {{ color: var(--accent); margin: 0; font-size: 1.7rem; }}
-#header p {{ color: #d4d4d4; margin: 6px 0 0 0; }}
-.panel-note {{
+#ocd-header h1 {{ color: {ORANGE}; margin: 0; font-size: 1.75rem; letter-spacing: .3px; }}
+#ocd-header p {{ color: #dcdcdc; margin: 6px 0 0 0; font-size: .95rem; }}
+
+.ocd-note {{
     border: 1px solid #ececec;
+    border-left: 4px solid {ORANGE};
     border-radius: 8px;
-    padding: 12px;
+    padding: 12px 14px;
     background: #fafafa;
+    font-size: .9rem;
 }}
+
+.ocd-section > .label-wrap {{ font-weight: 700 !important; color: {INK} !important; }}
+
+button.primary, .ocd-generate button {{
+    background: {ORANGE} !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}}
+button.primary:hover, .ocd-generate button:hover {{ filter: brightness(1.06); }}
+
+#ocd-status {{ font-weight: 600; }}
 """
 
 
@@ -60,6 +95,8 @@ def _initial_state(
     title: str,
     client: str,
     sector: str,
+    location: str,
+    date: str,
     duration: str,
     team: str,
     keywords: str,
@@ -74,6 +111,8 @@ def _initial_state(
             "title": title or "",
             "client": client or "",
             "sector": sector or "",
+            "location": location or "",
+            "date": date or "",
             "duration": duration or "",
             "team": team or "",
             "keywords": keywords or "",
@@ -103,16 +142,16 @@ def _format_report(report: dict | None) -> str:
     score = float(report.get("score", 0))
 
     lines = [
-        f"## Score qualite REF : **{score:.0f} / 100**",
+        f"## Score qualité REF : **{score:.0f} / 100**",
         "",
-        f"- Completude : **{breakdown.get('completeness', 0):.0f}/100**",
-        f"- Densite slide : **{breakdown.get('density', 0):.0f}/100**",
-        f"- Ancrage references : **{breakdown.get('grounding', 0):.0f}/100**",
-        f"- Exemples utilises : **{report.get('examples_used', 0)}**",
+        f"- Complétude : **{breakdown.get('completeness', 0):.0f}/100**",
+        f"- Densité slide : **{breakdown.get('density', 0):.0f}/100**",
+        f"- Ancrage références : **{breakdown.get('grounding', 0):.0f}/100**",
+        f"- Exemples utilisés : **{report.get('examples_used', 0)}**",
     ]
 
     if missing:
-        lines.extend(["", "### Champs a completer"])
+        lines.extend(["", "### Champs à compléter"])
         lines.extend([f"- {item}" for item in missing])
 
     if issues:
@@ -129,11 +168,11 @@ def _format_report(report: dict | None) -> str:
 def _format_examples(examples: list[dict]) -> str:
     if not examples:
         return (
-            "Aucun exemple trouve. Deposez des fiches REF dans "
-            f"`{REFERENCE_LIBRARY_DIR}` puis cliquez sur `Indexer la base REF`."
+            "Aucun exemple trouvé. Déposez des fiches REF dans "
+            f"`{REFERENCE_LIBRARY_DIR}` puis cliquez sur **Indexer la base REF**."
         )
 
-    lines = ["## Exemples similaires recuperes", ""]
+    lines = ["## Exemples similaires récupérés", ""]
     for example in examples:
         filename = example.get("filename", "document")
         excerpt = example.get("excerpt", "")
@@ -145,26 +184,36 @@ def cb_index_library() -> str:
     file_count = count_reference_files()
     chunk_count = index_reference_library(verbose=False)
     return (
-        f"Base REF indexee. Fichiers detectes : {file_count}. "
-        f"Chunks indexes : {chunk_count}. Dossier source : `{REFERENCE_LIBRARY_DIR}`"
+        f"✅ Base REF indexée — **{file_count}** fichier(s), **{chunk_count}** chunk(s). "
+        f"Source : `{REFERENCE_LIBRARY_DIR}`"
     )
+
+
+def cb_load_example() -> str:
+    return BRIEF_EXAMPLE
 
 
 def cb_generate(
     title,
     client,
     sector,
+    location,
+    date,
     duration,
     team,
     keywords,
     confidentiality,
     brief_text,
     supporting_files,
+    progress=gr.Progress(track_tqdm=False),
 ):
+    progress(0.1, desc="Préparation des entrées…")
     initial_state = _initial_state(
         title=title,
         client=client,
         sector=sector,
+        location=location,
+        date=date,
         duration=duration,
         team=team,
         keywords=keywords,
@@ -172,24 +221,26 @@ def cb_generate(
         brief_text=brief_text,
         supporting_files=supporting_files,
     )
+    progress(0.4, desc="Recherche d'exemples et génération…")
     final_state = graph.invoke(initial_state)
 
     if final_state.get("error"):
         return (
-            f"Erreur : {final_state['error']}",
-            gr.update(value="*Generation interrompue.*"),
+            f"❌ Erreur : {final_state['error']}",
+            gr.update(value="*Génération interrompue.*"),
             gr.update(value=""),
             gr.update(value={}),
             gr.update(visible=False, value=None),
         )
 
+    progress(0.9, desc="Finalisation…")
     report = final_state.get("quality_report") or {}
     structured_ref = final_state.get("structured_ref") or {}
     output_path = final_state.get("output_path")
     status = (
-        f"Fiche REF generee. Sortie : `{output_path}`"
+        f"✅ Fiche REF générée. Fichier : `{output_path}`"
         if output_path
-        else "Generation terminee sans fichier de sortie."
+        else "⚠️ Génération terminée sans fichier de sortie."
     )
 
     return (
@@ -205,67 +256,101 @@ def build_ui() -> gr.Blocks:
     with gr.Blocks(title="REF-Factory", theme=gr.themes.Base(), css=CSS) as demo:
         gr.HTML(
             """
-            <div id="header">
+            <div id="ocd-header">
               <h1>REF-Factory</h1>
-              <p>Generation d'une fiche REF PowerPoint une-slide avec base d'exemples locale.</p>
+              <p>Génération d'une fiche REF Orange Cyberdefense (PowerPoint une-slide)
+              à partir de vos informations et d'une base d'exemples locale.</p>
             </div>
             """
-        )
-
-        gr.Markdown(
-            f"""
-            <div class="panel-note">
-            Base d'exemples attendue : <code>{REFERENCE_LIBRARY_DIR}</code><br>
-            Sorties generees : <code>{OUTPUT_DIR}</code><br>
-            Fichiers temporaires UI : <code>{UPLOAD_DIR}</code>
-            </div>
-            """
-        )
-
-        library_status = gr.Markdown(
-            f"Fichiers REF detectes actuellement : **{count_reference_files()}** dans `{REFERENCE_LIBRARY_DIR}`"
         )
 
         with gr.Row():
-            with gr.Column(scale=1, min_width=340):
-                title = gr.Textbox(label="Titre de la fiche REF", placeholder="Ex : Accompagnement RSSI groupe industriel")
-                client = gr.Textbox(label="Client")
-                sector = gr.Textbox(label="Secteur")
-                duration = gr.Textbox(label="Duree / charge")
-                team = gr.Textbox(label="Equipe / intervenants")
-                keywords = gr.Textbox(label="Mots-cles", placeholder="Ex : audit, ISO 27001, gouvernance, SOC")
-                confidentiality = gr.Dropdown(
-                    label="Confidentialite",
-                    choices=["Interne", "Externe", "Confidentiel"],
-                    value="Interne",
+            # ── Colonne saisie ────────────────────────────────────────────
+            with gr.Column(scale=5, min_width=380):
+                library_status = gr.Markdown(
+                    f"📁 Fiches REF détectées : **{count_reference_files()}** "
+                    f"dans `{REFERENCE_LIBRARY_DIR}`"
                 )
-                brief_text = gr.Textbox(
-                    label="Brief consultant / resume de mission",
-                    lines=14,
-                    placeholder=(
-                        "Collez ici les informations utiles : contexte client, besoin, perimetre, "
-                        "livrables, equipe, resultats, enjeux, points forts, etc."
-                    ),
-                )
-                supporting_files = gr.File(
-                    label="Pieces jointes optionnelles",
-                    file_types=[".pdf", ".docx", ".pptx", ".txt", ".md", ".json"],
-                    file_count="multiple",
-                    type="filepath",
-                )
+
+                with gr.Accordion("1. Identité de la fiche", open=True):
+                    title = gr.Textbox(
+                        label="Titre de la fiche REF",
+                        placeholder="Ex : Exercice de crise cyber industriel",
+                    )
+                    client = gr.Textbox(label="Client", placeholder="Ex : Nexans")
+                    confidentiality = gr.Dropdown(
+                        label="Confidentialité",
+                        choices=["Interne", "Externe", "Confidentiel"],
+                        value="Interne",
+                    )
+
+                with gr.Accordion("2. Profil de la prestation", open=True):
+                    with gr.Row():
+                        sector = gr.Textbox(label="Secteur", placeholder="Ex : Transport")
+                        location = gr.Textbox(label="Lieu", placeholder="Ex : Paris / Colombie")
+                    with gr.Row():
+                        date = gr.Textbox(label="Date / Année", placeholder="Ex : 2024")
+                        duration = gr.Textbox(label="Durée / charge", placeholder="Ex : 27,25 jours")
+                    team = gr.Textbox(label="Équipe / intervenants", placeholder="Ex : 1 manager, 2 consultants")
+                    keywords = gr.Textbox(
+                        label="Mots-clés",
+                        placeholder="Ex : exercice de crise, gestion de crise, OT",
+                    )
+
+                with gr.Accordion("3. Contenu de la mission", open=True):
+                    gr.Markdown(
+                        "<div class='ocd-note'>Renseignez le contenu ci-dessous. "
+                        "Astuce : structurez votre texte avec les intitulés "
+                        "<b>Contexte / Réalisation / Livrables / Bénéfices</b> "
+                        "pour un meilleur découpage. Les sections laissées vides "
+                        "resteront vides sur la fiche.</div>"
+                    )
+                    brief_text = gr.Textbox(
+                        label="Brief consultant / résumé de mission",
+                        lines=14,
+                        placeholder="Collez ici le contexte, la réalisation, les livrables et les bénéfices…",
+                    )
+                    example_btn = gr.Button("＋ Charger un exemple de brief", size="sm")
+                    supporting_files = gr.File(
+                        label="Pièces jointes optionnelles",
+                        file_types=[".pdf", ".docx", ".pptx", ".txt", ".md", ".json"],
+                        file_count="multiple",
+                        type="filepath",
+                    )
 
                 with gr.Row():
-                    index_btn = gr.Button("Indexer la base REF")
-                    generate_btn = gr.Button("Generer la fiche REF", variant="primary")
+                    index_btn = gr.Button("🔄 Indexer la base REF")
+                    generate_btn = gr.Button(
+                        "⚡ Générer la fiche REF", variant="primary", elem_classes="ocd-generate"
+                    )
 
-                status_box = gr.Markdown("")
+                status_box = gr.Markdown("", elem_id="ocd-status")
 
-            with gr.Column(scale=1, min_width=340):
-                report_md = gr.Markdown("*Le rapport qualite apparaitra ici.*")
-                examples_md = gr.Markdown("*Les fiches REF similaires apparaitront ici.*")
-                structured_json = gr.JSON(label="JSON structure genere", value={})
-                download_file = gr.File(label="PPT final une-slide", visible=False, interactive=False)
+            # ── Colonne résultats ─────────────────────────────────────────
+            with gr.Column(scale=4, min_width=340):
+                gr.Markdown("### Résultat")
+                download_file = gr.File(
+                    label="📥 Fiche PPTX générée", visible=False, interactive=False
+                )
+                with gr.Accordion("Rapport qualité", open=True):
+                    report_md = gr.Markdown("*Le rapport qualité apparaîtra ici après génération.*")
+                with gr.Accordion("Fiches REF similaires (RAG)", open=False):
+                    examples_md = gr.Markdown("*Les exemples similaires apparaîtront ici.*")
+                with gr.Accordion("JSON structuré généré", open=False):
+                    structured_json = gr.JSON(value={})
 
+                gr.Markdown(
+                    f"""
+                    <div class="ocd-note" style="margin-top:10px">
+                    Sorties : <code>{OUTPUT_DIR}</code><br>
+                    Base d'exemples : <code>{REFERENCE_LIBRARY_DIR}</code><br>
+                    Accès à l'interface : <code>http://localhost:7861</code>
+                    </div>
+                    """
+                )
+
+        # ── Câblage ───────────────────────────────────────────────────────
+        example_btn.click(fn=cb_load_example, outputs=[brief_text])
         index_btn.click(fn=cb_index_library, outputs=[library_status])
         generate_btn.click(
             fn=cb_generate,
@@ -273,6 +358,8 @@ def build_ui() -> gr.Blocks:
                 title,
                 client,
                 sector,
+                location,
+                date,
                 duration,
                 team,
                 keywords,

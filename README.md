@@ -63,6 +63,30 @@ Extraites des fichiers de brand box :
 
 > ⚠️ L'ancienne valeur `#FF6600` était incorrecte. La couleur officielle est `#FF7900` (source : `accent1` / `lt2` dans les XML de brand box).
 
+### Template unique et fixe (fiche réelle remplie)
+
+Toutes les fiches sont générées en **remplissant exactement le même template** — une fiche REF Orange Cyberdefense réelle et validée, embarquée dans le repo :
+
+```
+src/ref_factory/templates/fiche_ref_template.pptx
+```
+
+Quel que soit le secteur, le **design ne change jamais** : photo de fond, mise en page, couleurs, polices, logo OCD et bloc « Profil de la prestation ». Le rendu ouvre ce fichier et **remplace uniquement les textes** par les informations de l'utilisateur, en conservant la mise en forme d'origine de chaque zone :
+
+| Zone du template | Rempli avec |
+|---|---|
+| Titre | `title` |
+| Contexte | `context` |
+| Réalisation | `mission` + `deliverables` |
+| Bénéfices | `results` |
+| Pastille année | année extraite de `date` |
+| Pastille secteur | `sector` |
+| Pastille lieu | `location` |
+| Pastille charge | `duration` |
+| Logo client | retiré, remplacé par le nom `client` |
+
+Les fiches du RAG servent uniquement d'inspiration pour le **contenu texte**, jamais pour la forme. Le template est déclaré dans `src/ref_factory/charter/ocd_charter.json` (section `template`). Si le fichier est absent, un rendu de secours reconstruit la fiche programmatiquement sur le template Brand Box fond noir (`OFR_template_Fond_noir.potx`).
+
 ### Polices
 
 - Principale : **Source Sans Pro**
@@ -71,30 +95,26 @@ Extraites des fichiers de brand box :
 ### Dimensions slide
 
 - Largeur : **33.87 cm**
-- Hauteur : **19.05 cm** (format 16:9 standard OCD)
+- Hauteur : **19.05 cm** (format 16:9 du template fiche)
 
-### Grille de mise en page
+### Grille de mise en page (template fiche)
 
 ```
-┌─────────────────────────────────────────────────┐
-│  [Bandeau orange 0.6 cm]        Orange CD       │
-├─────────────────────────────────────────────────┤
-│  [Titre]                              [Badge]   │
-│  [Sous-titre : Client | Secteur | Durée]        │
-│  ═══════════════════════════════════════════════│
-│  ┌──────────────┐  ┌──────────────────────────┐ │
-│  │ MÉTADONNÉES  │  │ CONTEXTE  │  MISSION     │ │
-│  │ (fond gris)  │  ├───────────┴──────────────┤ │
-│  │ Client       │  │ LIVRABLES │  RÉSULTATS   │ │
-│  │ Secteur      │  │ • item 1  │  • item 1    │ │
-│  │ Durée        │  │ • item 2  │  • item 2    │ │
-│  │ Équipe       │  │ • item 3  │  • item 3    │ │
-│  │ Mots-clés    │  └──────────────────────────┘ │
-│  └──────────────┘                               │
-├─────────────────────────────────────────────────┤
-│  Orange Cyberdefense — Conseil & Audit   [date] │
-└─────────────────────────────────────────────────┘
+┌───────────────────────┬─────────────────────────────────┐
+│                       │  [Titre]                        │
+│                       │  Contexte                       │
+│   [Photo pleine       │  ................                │
+│    hauteur +          │  Réalisation                    │
+│    logo OCD]          │  • ......                        │
+│                       │  Bénéfices                      │
+│  ┌──────────────────┐ │  • ......                        │
+│  │ Profil prestation│ │                                 │
+│  │ Secteur | Année  │ │                                 │
+│  │ Charge | Lieu    │ │  [Nom du client]                │
+│  └──────────────────┘ │                                 │
+└───────────────────────┴─────────────────────────────────┘
 ```
+Cette disposition est celle du template fiche embarqué : elle ne change jamais, seul le texte de chaque zone est remplacé.
 
 ---
 
@@ -117,7 +137,15 @@ Formats supportés : `.pptx`, `.pdf`, `.docx`, `.txt`, `.md`, `.json`
 python copy_ref_factory.py
 ```
 
-Le script copie toutes les fiches REF depuis `O:\ConseiletAudit\Références` vers `data/reference_library/`. Ce script est conçu pour Windows avec accès au réseau Orange.
+Le script parcourt tout l'arbre `O:\ConseiletAudit` (pas seulement un sous-dossier "Références") et copie les fichiers reconnus dans `data/reference_library/`. Ce script est conçu pour Windows avec accès au réseau Orange.
+
+**Filtre de conformité strict** : seul le **nom du fichier** détermine l'acceptation — il doit contenir explicitement `REF` ou `Reference`/`Référence` (insensible aux accents/majuscules, ex. `REF_Audit.pptx`, `Fiche_REF_SOC.pptx`, `REF2024_Banque.pdf`, `Référence_Client.docx` sont acceptés ; `Preferences_utilisateur.pptx` ou `conference_cyber.pptx` sont rejetés). Aucune lecture de contenu n'est faite. Les fichiers dont le nom contient par ailleurs un mot-clé hors périmètre (`compte-rendu`, `planning`, `proposition`, `contrat`...) sont exclus même s'ils contiennent REF. Les motifs sont ajustables en tête de `copy_ref_factory.py` (`NAME_ACCEPT_PATTERN`, `NAME_REJECT_PATTERN`).
+
+Un manifeste (`data/reference_library/.copy_manifest.json`) trace les fichiers copiés par le script. À chaque exécution, les fichiers précédemment copiés qui ne passent plus le filtre (ou disparus de la source) sont automatiquement supprimés de `data/reference_library/`. Si le dossier contient déjà des fichiers copiés par une ancienne version non filtrée du script (jamais tracés), ils sont listés mais pas supprimés automatiquement — relancer avec `--apply-legacy-cleanup` pour les nettoyer :
+
+```bash
+python copy_ref_factory.py --apply-legacy-cleanup
+```
 
 ### Créer des fiches exemples (hors réseau Orange / Linux)
 
@@ -135,6 +163,14 @@ Crée 7 fiches REF anonymisées couvrant les principaux domaines OCD :
 - Cyberdiagnostic PME (TISAX)
 - Réponse à incident ransomware (CERT)
 - DPO externalisé / RGPD (collectivité)
+
+### Nettoyer les fiches hors charte graphique OCD
+
+```bash
+python scripts/enforce_charter_compliance.py
+```
+
+Analyse tous les fichiers `.pptx`/`.potx` de `data/reference_library/` et **supprime immédiatement** ceux qui ne respectent pas la charte graphique Orange Cyberdefense : dimensions de slide (25.40x14.29 cm ou 33.87x19.05 cm), polices (Source Sans Pro, Calibri, Arial, Helvetica, Montserrat) et couleurs (nuances de gris, oranges de marque `#FF7900`/`#FF6600`, accent bleu `#00B0F0`). Les formats non PowerPoint (`.json`, `.txt`, `.md`, `.pdf`, `.docx`) n'ont pas de charte graphique vérifiable et ne sont pas concernés. Les `.ppt` binaires (illisibles par python-pptx) sont signalés mais jamais supprimés automatiquement.
 
 ### Indexer la base
 

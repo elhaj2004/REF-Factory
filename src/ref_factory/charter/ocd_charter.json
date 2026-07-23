@@ -16,6 +16,22 @@
     "primary": "Source Sans Pro",
     "fallback": ["Calibri", "Arial", "Helvetica Neue"]
   },
+  "template": {
+    "_comment": "Template fiche unique et fixe pour TOUTES les fiches, quel que soit le secteur : une fiche REF reelle validee, dont seuls les textes sont remplaces. Le potx fond noir ne sert que de rendu de secours.",
+    "path": "src/ref_factory/templates/fiche_ref_template.pptx",
+    "fallback_potx": "Tools and templates PPT - FR/French/2. Templates/French/OFR_template_Fond_noir.potx",
+    "layout_name": "Vide",
+    "slide_width_cm": 33.87,
+    "slide_height_cm": 19.05
+  },
+  "dark_theme": {
+    "_comment": "Declinaison fond noir (OFR_template_Fond_noir.potx) : texte clair sur fond sombre.",
+    "background": "#000000",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#D6D6D6",
+    "panel_fill": "#262626",
+    "panel_border": "#595959"
+  },
   "pptx": {
     "slide_width_cm": 33.87,
     "slide_height_cm": 19.05,

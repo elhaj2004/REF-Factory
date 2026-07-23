@@ -25,6 +25,8 @@ Schema JSON attendu :
   "title": "str",
   "client": "str",
   "sector": "str",
+  "location": "str",
+  "date": "str (annee ou periode, ex: 2024)",
   "duration": "str",
   "team": "str",
   "keywords": ["str"],
@@ -89,6 +91,8 @@ def _normalize_structured_ref(candidate: dict[str, Any], state: RefFactoryState)
         "title": _clean_string(candidate.get("title")) or _clean_string(manual_fields.get("title")) or "Fiche REF",
         "client": _clean_string(candidate.get("client")) or _clean_string(manual_fields.get("client")) or "[A_COMPLETER]",
         "sector": _clean_string(candidate.get("sector")) or _clean_string(manual_fields.get("sector")) or "[A_COMPLETER]",
+        "location": _clean_string(candidate.get("location")) or _clean_string(manual_fields.get("location")) or "[A_COMPLETER]",
+        "date": _clean_string(candidate.get("date")) or _clean_string(manual_fields.get("date")) or "",
         "duration": _clean_string(candidate.get("duration")) or _clean_string(manual_fields.get("duration")) or "[A_COMPLETER]",
         "team": _clean_string(candidate.get("team")) or _clean_string(manual_fields.get("team")) or "[A_COMPLETER]",
         "keywords": _normalize_list(candidate.get("keywords"), fallback=_split_keywords(manual_fields.get("keywords", ""))),
@@ -106,25 +110,44 @@ def _normalize_structured_ref(candidate: dict[str, Any], state: RefFactoryState)
 
 def _fallback_structured_ref(state: RefFactoryState) -> dict[str, Any]:
     manual_fields = state.get("manual_fields") or {}
-    source_text = state.get("combined_source_text") or ""
-    sentences = _split_sentences(source_text)
-    bullets = _candidate_bullets(source_text)
+    # IMPORTANT : ne derive le contenu (contexte, mission, livrables, resultats)
+    # QUE du texte de fond consultant (brief + pieces jointes), jamais du bloc
+    # de metadonnees "CHAMPS SAISIS ..." construit par build_combined_source_text.
+    # Sans ce filtre, le dump des champs saisis se retrouvait dans les sections.
+    content_text = _content_source_text(state)
+    sentences = _split_sentences(content_text)
+    bullets = _candidate_bullets(content_text)
 
     candidate = {
         "title": manual_fields.get("title") or _derive_title(manual_fields, sentences),
         "client": manual_fields.get("client") or "[A_COMPLETER]",
         "sector": manual_fields.get("sector") or "[A_COMPLETER]",
+        "location": manual_fields.get("location") or "[A_COMPLETER]",
+        "date": manual_fields.get("date") or "",
         "duration": manual_fields.get("duration") or "[A_COMPLETER]",
         "team": manual_fields.get("team") or "[A_COMPLETER]",
         "keywords": _split_keywords(manual_fields.get("keywords", "")),
         "confidentiality": manual_fields.get("confidentiality", "Interne"),
-        "context": summarize_text(" ".join(sentences[:2]) or source_text, max_chars=320) or "[A_COMPLETER]",
-        "mission": summarize_text(" ".join(sentences[2:4]) or source_text, max_chars=320) or "[A_COMPLETER]",
+        "context": summarize_text(" ".join(sentences[:2]), max_chars=320) or "[A_COMPLETER]",
+        "mission": summarize_text(" ".join(sentences[2:4]), max_chars=320) or "[A_COMPLETER]",
         "deliverables": bullets[:3] or ["[A_COMPLETER]"],
         "results": bullets[3:6] or ["[A_COMPLETER]"],
-        "notes": summarize_text(source_text, max_chars=180) if source_text else "",
+        "notes": summarize_text(content_text, max_chars=180) if content_text else "",
     }
     return _normalize_structured_ref(candidate, state)
+
+
+def _content_source_text(state: RefFactoryState) -> str:
+    """Texte consultant reel (brief + documents), sans le bloc des champs saisis."""
+    parts: list[str] = []
+    brief = (state.get("brief_text") or "").strip()
+    if brief:
+        parts.append(brief)
+    for document in state.get("source_documents") or []:
+        text = (document.get("text") or "").strip()
+        if text:
+            parts.append(text)
+    return "\n\n".join(parts).strip()
 
 
 def _derive_title(manual_fields: dict[str, str], sentences: list[str]) -> str:
